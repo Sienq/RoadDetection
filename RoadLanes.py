@@ -12,7 +12,7 @@ class LaneDetector():
     #!Convert img to HLS and get only Light channel
     def preprocess_frame(self,threshold1=100,threshold2=255,kernelSize = (7,7)):
 
-        # self.frame = cv2.GaussianBlur(self.frame,kernelSize,sigmaX=0)
+        self.frame = cv2.GaussianBlur(self.frame,kernelSize,sigmaX=0)
         self.hlsImg = cv2.cvtColor(self.frame, cv2.COLOR_BGR2HLS).astype(float)     # Convert from BGR to H-HUE L-LIGHT S-Saturation format
         self.hlsLight = self.hlsImg[:,:,1]      # Get only L channel
 
