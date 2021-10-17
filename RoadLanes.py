@@ -3,6 +3,8 @@ import numpy as np
 import tkinter as tk
 import matplotlib.pyplot as plt
 
+#TODO Slide algorith implementation
+#TODO Detect and draw Lanes
 
 class LaneDetector():
     def __init__(self,frame):
