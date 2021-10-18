@@ -26,8 +26,8 @@ class LaneDetector():
         center = (int(w/2),int(h/2))    # center of video frame
         cords = np.array([[[center[0]+150,center[1]-20],
                            [center[0]-100,center[1]-20],
-                           [0+50,h-225],
-                           [w-50,h-225]]])      # coordinates of rectangle where road lanes are
+                           [0+220,h-225],
+                           [w-220,h-225]]])      # coordinates of rectangle where road lanes are
         mask = cv2.fillPoly(mask,cords,(255,255,255)) 
         self.maskedImg = cv2.bitwise_and(frame,mask)    # bitwise operation to make all elements except mask black
 
@@ -56,7 +56,7 @@ class LaneDetector():
         thresholdChangeUp = 15
         thresholdChangeDown = 60
         thresholdChangeDelta = thresholdChangeDown-thresholdChangeUp
-        
+
         for yindx in range(height):     # change threshold gradually to avoid disappearing line on top side of frame
             binLine = self.binaryOutput[yindx,:]
             edgeLine = frame[yindx,:]
@@ -71,7 +71,7 @@ class LaneDetector():
 
 
     #!Create histograms from tresholded "bird eye" view
-    def create_histograms(self):
+    def create_histograms(self,frame=None):
 
         self.partialFrame = self.binaryOutput[self.binaryOutput.shape[0] * 2 // 3:,:] # get small part of whole masked area
         cv2.imshow('partial',self.partialFrame)
@@ -80,34 +80,124 @@ class LaneDetector():
         # plt.show()
 
         leftLane = np.argmax(histogram[0:len(histogram)//2])    # left side of histogram is for left lane
-        rightLane = np.argmax(histogram[len(histogram)//2:])    # right side of histogram is for right lane
+        rightLane = np.argmax(histogram[len(histogram)//2:]) + int(histogram.shape[0]/2)   # right side of histogram is for right lane
 
         return leftLane,rightLane
+    #! JAK NIE ZADZIALA TO ZMIENIC PARTIAL FRAME NA BINARY OUTPUT
+    def detect_lines(self,frame=None):
 
-    def detect_lines(self):
+        leftLaneHist,rightLaneHist = self.create_histograms()
+        
+        slidingWindowsNumber = 7
+        slidingWindowHeight = self.partialFrame.shape[0]/slidingWindowsNumber
 
-        windowHeight = self.binaryOutput.shape[0]/15 #num_windows
-        margin = 80
-        minPixels = 50
-        nonZero = self.binaryOutput.nonzero()
+        nonZero = self.partialFrame.nonzero()
         nonZeroY = np.array(nonZero[0])
-        nonzeroX = np.array(nonZero[1])
+        nonZeroX = np.array(nonZero[1])
 
-        leftX,rigthX = self.create_histograms()
+        leftCurr = leftLaneHist
+        rightCurr = rightLaneHist
 
-        leftLaneIndexes = []
-        rightLaneIndexes = []
+        margin = 100
+        minpix = 50
 
-        for idx in range(15):
-            windowXleftMin = leftX - margin
-            windowXleftMax = leftX + margin
-            windowXrightMin = rigthX - margin
-            windowXrightMax = rigthX + margin
+        leftIndicies = []
+        rightIndicies = []
 
-            windowYTop = self.partialFrame.shape[1] - idx * windowHeight
-            windowYBottom = windowYTop - windowHeight
 
-            cv2.imshow('lines',self.partialFrame)
+        for window in range(slidingWindowsNumber):
+            winYLOW = np.round(self.partialFrame.shape[0] - (window+1) * slidingWindowHeight).astype(int)
+            winYHIGH = np.round(self.partialFrame.shape[0] - window*slidingWindowHeight).astype(int)
+            winXLeftLow = np.round(leftCurr - margin).astype(int)
+            winXLeftHigh = np.round(leftCurr + margin).astype(int)
+            winXRightLow = np.round(rightCurr - margin).astype(int)
+            winXRightHigh = np.round(rightCurr + margin).astype(int)
+
+
+            cv2.rectangle(self.partialFrame,(winXLeftLow,winYLOW),(winXLeftHigh,winYHIGH),(255,255,255),2)
+            cv2.rectangle(self.partialFrame,(winXRightLow,winYLOW),(winXRightHigh,winYHIGH),(255,255,255),2)
+
+            goodLeft = ((nonZeroY >= winYLOW) & (nonZeroY < winYHIGH) & (nonZeroX >= winXLeftLow) & (nonZeroX < winXLeftHigh)).nonzero()[0]
+            goodRight = ((nonZeroY >= winYLOW) & (nonZeroY < winYHIGH) & (nonZeroX >= winXRightLow) & (nonZeroX < winXRightHigh)).nonzero()[0]
+
+            leftIndicies.append(goodLeft)
+            rightIndicies.append(goodRight)
+            if len(goodLeft) > minpix:
+                leftCurr = int(np.mean(nonZeroX[goodLeft]))
+            if len(goodRight) > minpix:
+                rightCurr = int(np.mean(nonZeroX[goodRight]))
+
+
+        leftIndicies = np.concatenate(leftIndicies)
+        rightIndicies = np.concatenate(rightIndicies)
+
+        leftX = nonZeroX[leftIndicies]
+        leftY = nonZeroY[leftIndicies]
+        rightX = nonZeroX[rightIndicies]
+        rightY = nonZeroY[rightIndicies]
+
+
+        # ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
+        # leftPolynomialFit = np.polyfit(leftY,leftX,2)
+        # rightPolynomialFit = np.polyfit(rightY,rightX,2)
+
+        # right = np.asarray(tuple(zip(rightPolynomialFit,ploty)),np.int32)
+        # left = np.asarray(tuple(zip(leftPolynomialFit,ploty)),np.int32)
+        # cv2.polylines(self.partialFrame,[right],False,(255,255,255),2)
+        # cv2.polylines(self.partialFrame,[left],False,(255,255,255),2)
+        cv2.imshow('with rect',self.partialFrame)
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        # windowHeight = self.binaryOutput.shape[0]/15 #num_windows
+        # margin = 80
+        # minPixels = 50
+        # nonZero = self.binaryOutput.nonzero()
+        # nonZeroY = np.array(nonZero[0])
+        # nonzeroX = np.array(nonZero[1])
+
+        # leftX,rigthX = self.create_histograms()
+
+        # leftLaneIndexes = []
+        # rightLaneIndexes = []
+
+        # for idx in range(15):
+        #     windowXleftMin = leftX - margin
+        #     windowXleftMax = leftX + margin
+        #     windowXrightMin = rigthX - margin
+        #     windowXrightMax = rigthX + margin
+
+        #     windowYTop = self.partialFrame.shape[1] - idx * windowHeight
+        #     windowYBottom = windowYTop - windowHeight
+
+        #     cv2.imshow('lines',self.partialFrame)
 
 
 if __name__ == '__main__':
