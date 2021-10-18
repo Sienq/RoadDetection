@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 
 #TODO Slide algorith implementation
 #TODO Detect and draw Lanes
+#TODO GOOD DRAWNING OF LANES -> IMPORTANT
 
 class LaneDetector():
     def __init__(self,frame):
@@ -73,7 +74,7 @@ class LaneDetector():
     #!Create histograms from tresholded "bird eye" view
     def create_histograms(self,frame=None):
 
-        self.partialFrame = self.binaryOutput[self.binaryOutput.shape[0] * 2 // 3:,:] # get small part of whole masked area
+        self.partialFrame = self.binaryOutput[self.binaryOutput.shape[0] // 2:,:] # get small part of whole masked area
         cv2.imshow('partial',self.partialFrame)
         histogram = np.sum(self.partialFrame,axis=0)    # create histogram
         # plt.plot(histogram)
@@ -84,6 +85,7 @@ class LaneDetector():
 
         return leftLane,rightLane
     #! JAK NIE ZADZIALA TO ZMIENIC PARTIAL FRAME NA BINARY OUTPUT
+
     def detect_lines(self,frame=None):
 
         leftLaneHist,rightLaneHist = self.create_histograms()
@@ -103,7 +105,6 @@ class LaneDetector():
 
         leftIndicies = []
         rightIndicies = []
-
 
         for window in range(slidingWindowsNumber):
             winYLOW = np.round(self.partialFrame.shape[0] - (window+1) * slidingWindowHeight).astype(int)
@@ -135,11 +136,29 @@ class LaneDetector():
         leftY = nonZeroY[leftIndicies]
         rightX = nonZeroX[rightIndicies]
         rightY = nonZeroY[rightIndicies]
+        # if len(rightX) <= 1:
+        #     rightX[0] = 1
+        # if len(rightY) <= 1:
+        #     rightY[0] = 1
 
-
-        # ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
-        # leftPolynomialFit = np.polyfit(leftY,leftX,2)
-        # rightPolynomialFit = np.polyfit(rightY,rightX,2)
+        # if len(leftX) <= 1:
+        #     leftX[0] = 1
+        # if len(leftY) <= 1:
+        #     leftY[0] = 1
+        
+        self.partialFrame = cv2.cvtColor(self.partialFrame,cv2.COLOR_GRAY2BGR)
+        
+        ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
+        if len(leftX) and len(leftY):
+            print('siema')
+            leftPolynomialFit = np.polyfit(leftY,leftX,2)
+            left = np.asarray(tuple(zip(leftPolynomialFit,ploty)),np.int32)
+            cv2.polylines(self.partialFrame,[left],False,(255,0,255),10)
+        if len(rightX) and len(rightY):
+            print('siema2')
+            rightPolynomialFit = np.polyfit(rightY,rightX,2)
+            right = np.asarray(tuple(zip(rightPolynomialFit,ploty)),np.int32)
+            cv2.polylines(self.partialFrame,[right],False,(255,0,255),10)
 
         # right = np.asarray(tuple(zip(rightPolynomialFit,ploty)),np.int32)
         # left = np.asarray(tuple(zip(leftPolynomialFit,ploty)),np.int32)
