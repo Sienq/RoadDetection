@@ -86,7 +86,7 @@ class LaneDetector():
         return leftLane,rightLane
     #! JAK NIE ZADZIALA TO ZMIENIC PARTIAL FRAME NA BINARY OUTPUT
 
-    def detect_lines(self,frame=None):
+    def full_window_search(self,frame=None):
 
         leftLaneHist,rightLaneHist = self.create_histograms()
         
@@ -101,7 +101,7 @@ class LaneDetector():
         rightCurr = rightLaneHist
 
         margin = 100
-        minpix = 50
+        minpix = 10
 
         leftIndicies = []
         rightIndicies = []
@@ -136,87 +136,25 @@ class LaneDetector():
         leftY = nonZeroY[leftIndicies]
         rightX = nonZeroX[rightIndicies]
         rightY = nonZeroY[rightIndicies]
-        # if len(rightX) <= 1:
-        #     rightX[0] = 1
-        # if len(rightY) <= 1:
-        #     rightY[0] = 1
-
-        # if len(leftX) <= 1:
-        #     leftX[0] = 1
-        # if len(leftY) <= 1:
-        #     leftY[0] = 1
         
         self.partialFrame = cv2.cvtColor(self.partialFrame,cv2.COLOR_GRAY2BGR)
         
         ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
+        
+        
         if len(leftX) and len(leftY):
-            print('siema')
             leftPolynomialFit = np.polyfit(leftY,leftX,2)
-            left = np.asarray(tuple(zip(leftPolynomialFit,ploty)),np.int32)
-            cv2.polylines(self.partialFrame,[left],False,(255,0,255),10)
+            leftFit = leftPolynomialFit[0] *ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
+            left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
+            cv2.polylines(self.partialFrame,[left],False,(255,255,0),10)
         if len(rightX) and len(rightY):
-            print('siema2')
             rightPolynomialFit = np.polyfit(rightY,rightX,2)
-            right = np.asarray(tuple(zip(rightPolynomialFit,ploty)),np.int32)
+            rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
+            right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
             cv2.polylines(self.partialFrame,[right],False,(255,0,255),10)
 
-        # right = np.asarray(tuple(zip(rightPolynomialFit,ploty)),np.int32)
-        # left = np.asarray(tuple(zip(leftPolynomialFit,ploty)),np.int32)
-        # cv2.polylines(self.partialFrame,[right],False,(255,255,255),2)
-        # cv2.polylines(self.partialFrame,[left],False,(255,255,255),2)
         cv2.imshow('with rect',self.partialFrame)
-    
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        # windowHeight = self.binaryOutput.shape[0]/15 #num_windows
-        # margin = 80
-        # minPixels = 50
-        # nonZero = self.binaryOutput.nonzero()
-        # nonZeroY = np.array(nonZero[0])
-        # nonzeroX = np.array(nonZero[1])
 
-        # leftX,rigthX = self.create_histograms()
-
-        # leftLaneIndexes = []
-        # rightLaneIndexes = []
-
-        # for idx in range(15):
-        #     windowXleftMin = leftX - margin
-        #     windowXleftMax = leftX + margin
-        #     windowXrightMin = rigthX - margin
-        #     windowXrightMax = rigthX + margin
-
-        #     windowYTop = self.partialFrame.shape[1] - idx * windowHeight
-        #     windowYBottom = windowYTop - windowHeight
-
-        #     cv2.imshow('lines',self.partialFrame)
 
 
 if __name__ == '__main__':
@@ -230,7 +168,7 @@ if __name__ == '__main__':
         capfordetection.get_perspective(capfordetection.hlsLight)
         capfordetection.get_img_for_histogram()
         capfordetection.threshold()
-        capfordetection.detect_lines()
+        capfordetection.full_window_search()
         cv2.imshow('cam',capfordetection.frame)
         if cv2.waitKey(30) & 0xFF == ord('q'):
             break
