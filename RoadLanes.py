@@ -3,9 +3,6 @@ import numpy as np
 import tkinter as tk
 import matplotlib.pyplot as plt
 
-#TODO Slide algorith implementation
-#TODO Detect and draw Lanes
-#TODO GOOD DRAWNING OF LANES -> IMPORTANT
 
 class LaneDetector():
     def __init__(self,frame):
@@ -13,7 +10,7 @@ class LaneDetector():
         self.frame = frame
 
     #!Convert img to HLS and get only Light channel
-    def preprocess_frame(self,threshold1=100,threshold2=255,kernelSize = (7,7)):
+    def preprocess_frame(self,threshold1=255/3,threshold2=255,kernelSize = (5,5)):
 
         self.frame = cv2.GaussianBlur(self.frame,kernelSize,sigmaX=0)
         self.hlsImg = cv2.cvtColor(self.frame, cv2.COLOR_BGR2HLS).astype(float)     # Convert from BGR to H-HUE L-LIGHT S-Saturation format
@@ -66,15 +63,13 @@ class LaneDetector():
 
 
         self.binaryOutput[(self.perspectiveImg >=140) & (self.perspectiveImg <= 255)] = 255
-        # binaryThreshold = np.zeros_like(self.perspectiveImg)
-        # binaryThreshold[(self.perspectiveImg >=140) & (self.perspectiveImg <= 255)] = 255
         cv2.imshow('binary',self.binaryOutput)
 
 
     #!Create histograms from tresholded "bird eye" view
     def create_histograms(self,frame=None):
 
-        self.partialFrame = self.binaryOutput[self.binaryOutput.shape[0] // 2:,:] # get small part of whole masked area
+        self.partialFrame = self.binaryOutput # get small part of whole masked area
         cv2.imshow('partial',self.partialFrame)
         histogram = np.sum(self.partialFrame,axis=0)    # create histogram
         # plt.plot(histogram)
@@ -156,6 +151,37 @@ class LaneDetector():
         cv2.imshow('with rect',self.partialFrame)
 
 
+
+    def margin_search(self,frame = None):
+
+        nonZero = self.partialFrame.nonzero()
+        nonZeroY = np.array(nonZero[0])
+        nonZeroX = np.array(nonZero[1])
+
+        margin = 50
+
+        leftIndicies = ((nonZeroX > (leftLine.current_fit[0]*(nonZeroY**2) + leftLine.current_fit[1]*nonZeroY + leftLine.current_fit[2] - margin)) & (nonZeroX < (leftLine.current_fit[0]*(nonZeroY**2) + leftLine.current_fit[1]*nonZeroY + leftLine.current_fit[2] + margin)))
+        rightIndicies = ((nonZeroX > (rightLine.current_fit[0]*(nonZeroY**2) + rightLine.current_fit[1]*nonZeroY + rightLine.current_fit[2] - margin)) & (nonZeroX < (rightLine.current_fit[0]*(nonZeroY**2) + rightLine.current_fit[1]*nonZeroY + rightLine.current_fit[2] + margin)))
+
+        leftX = nonZeroX[leftIndicies]
+        leftY = nonZeroY[leftIndicies]
+        rightX = nonZeroX[rightIndicies]
+        rightY = nonZeroY[rightIndicies]
+
+        self.partialFrame = cv2.cvtColor(self.partialFrame,cv2.COLOR_GRAY2BGR)
+        
+        ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
+
+        if len(leftX) and len(leftY):
+            leftPolynomialFit = np.polyfit(leftY,leftX,2)
+            leftFit = leftPolynomialFit[0] *ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
+            left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
+            cv2.polylines(self.partialFrame,[left],False,(255,255,0),10)
+        if len(rightX) and len(rightY):
+            rightPolynomialFit = np.polyfit(rightY,rightX,2)
+            rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
+            right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
+            cv2.polylines(self.partialFrame,[right],False,(255,0,255),10)
 
 if __name__ == '__main__':
     video = cv2.VideoCapture('dashcamshort.mp4')
