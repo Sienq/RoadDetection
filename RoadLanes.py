@@ -22,7 +22,7 @@ class Line():
         self.lineBasePos = None
 
     def updateLines(self,ally,allx):
-        self.bestX = np.mean(allx,axis=0)
+        self.bestx = np.mean(allx,axis=0)
         newFit = np.polyfit(ally,allx,2)
         self.currentFit = newFit
         self.recentXFit.append(self.currentFit)
@@ -103,8 +103,8 @@ class LaneDetector():
         self.partialFrame = self.binaryOutput # get small part of whole masked area
         cv2.imshow('partial',self.partialFrame)
         histogram = np.sum(self.partialFrame,axis=0)    # create histogram
-        plt.plot(histogram)
-        plt.show()
+        # plt.plot(histogram)
+        # plt.show()
 
         leftLane = np.argmax(histogram[0:len(histogram)//2])    # left side of histogram is for left lane
         rightLane = np.argmax(histogram[len(histogram)//2:]) + int(histogram.shape[0]/2)   # right side of histogram is for right lane
@@ -131,7 +131,7 @@ class LaneDetector():
 
         self.leftIndicies = []
         self.rightIndicies = []
-        toshow = self.partialFrame
+        toshow = np.array(self.partialFrame)
         for window in range(slidingWindowsNumber):
             winYLOW = np.round(self.partialFrame.shape[0] - (window+1) * slidingWindowHeight).astype(int)
             winYHIGH = np.round(self.partialFrame.shape[0] - window*slidingWindowHeight).astype(int)
@@ -159,23 +159,22 @@ class LaneDetector():
         self.rightIndicies = np.concatenate(self.rightIndicies)
 
 
-        self.leftX = nonZeroX[self.leftIndicies]
-        # print(leftX[:100])
-        self.leftY = nonZeroY[self.leftIndicies] #! TU NIE POWINNO BYC SELFow  TYMCZASOWE ROZWIAZANIE
-        self.rightX = nonZeroX[self.rightIndicies]
-        self.rightY = nonZeroY[self.rightIndicies]
+        leftX = nonZeroX[self.leftIndicies]
+        leftY = nonZeroY[self.leftIndicies] #! TU NIE POWINNO BYC SELFow  TYMCZASOWE ROZWIAZANIE
+        rightX = nonZeroX[self.rightIndicies]
+        rightY = nonZeroY[self.rightIndicies]
 
         # self.partialFrame = cv2.cvtColor(self.partialFrame,cv2.COLOR_GRAY2BGR)
         ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
 
-        if len(self.leftX) and len(self.leftY):
-            leftPolynomialFit = np.polyfit(self.leftY,self.leftX,2)
+        if len(leftX) and len(leftY):
+            leftPolynomialFit = np.polyfit(leftY,leftX,2)
             leftFit = leftPolynomialFit[0] *ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
             left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
             cv2.polylines(toshow,[left],False,(255,255,255),10)
 
-        if len(self.rightX) and len(self.rightY):
-            rightPolynomialFit = np.polyfit(self.rightY,self.rightX,2)
+        if len(rightX) and len(rightY):
+            rightPolynomialFit = np.polyfit(rightY,rightX,2)
             rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
             right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
             cv2.polylines(toshow,[right],False,(255,255,255),10)
@@ -185,12 +184,14 @@ class LaneDetector():
 
 
     def margin_search(self,leftLine,rightLine,frame= None):
-        print(self.partialFrame)
+
         nonZero = self.partialFrame.nonzero() # returns indexes of non zero pixels
         nonZeroY = np.array(nonZero[0]) # in Y direction
         nonZeroX = np.array(nonZero[1]) # in X direction
 
         margin = 30
+        print(leftLine.shape)
+        print(rightLine.shape)
 
         self.leftIndicies = ((nonZeroX > (leftLine[0]*(nonZeroY**2) + leftLine[1]*nonZeroY + leftLine[2] - margin)) & (nonZeroX < (leftLine[0]*(nonZeroY**2) + leftLine[1]*nonZeroY + leftLine[2] + margin)))
         self.rightIndicies = ((nonZeroX > (rightLine[0]*(nonZeroY**2) + rightLine[1]*nonZeroY + rightLine[2] - margin)) & (nonZeroX < (rightLine[0]*(nonZeroY**2) + rightLine[1]*nonZeroY + rightLine[2] + margin)))
@@ -200,7 +201,7 @@ class LaneDetector():
         rightX = nonZeroX[self.rightIndicies]
         rightY = nonZeroY[self.rightIndicies]
 
-        toshow = self.partialFrame
+        toshow = np.array(self.partialFrame)
 
         ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
 
@@ -229,27 +230,29 @@ class LaneDetector():
 
 
     def validate_find_lanes(self,frame,leftLine,rightLine):
-        imageSizes = (frame.shape[1],frame.shape[0])
 
-        nonzero = frame.nonzero()
+        imageSizes = (self.partialFrame.shape[1],frame.shape[0])
+
+        nonzero = self.partialFrame.nonzero()
         nonZeroY = np.array(nonzero[0])
         nonZeroX = np.array(nonzero[1])
 
-        leftLineAllX = self.leftX
-        leftLineAllY = self.leftY
+        leftLineAllX = nonZeroX[self.leftIndicies]
+        leftLineAllY = nonZeroY[self.leftIndicies]
                                             #! TO DO NAPRAWY, ZLE PRZEPISUJA SIE  INDEKSY
-        rightLineAllX = self.rightX
-        rightLineAllY = self.rightY
+        rightLineAllX = nonZeroX[self.rightIndicies]
+        rightLineAllY = nonZeroY[self.rightIndicies]
+        print(len(self.rightIndicies))
 
         if len(leftLineAllX) < 1800 or len(rightLineAllX) < 1800:
             print('0 if')
             leftLine.detected = False
             rightLine.detected = False
             return
-        
+
         leftXMean = np.mean(leftLineAllX,axis=0)
         rightXMean = np.mean(rightLineAllX,axis=0)
-
+        print(leftXMean,rightXMean)
         laneWidth = np.subtract(rightXMean,leftXMean)
 
         if leftXMean > 512 or rightXMean < 512:
@@ -258,19 +261,19 @@ class LaneDetector():
             rightLine.detected = False
             return
 
-        if laneWidth < 300 or laneWidth > 800:
-            print('second if')
+        if laneWidth < 300 or laneWidth > 600:
+            # print('second if')
             leftLine.detected = False
             rightLine.detected = False
             return
 
         if leftLine.bestx is None or np.abs(np.substract(leftLine.bestx,np.mean(leftLineAllX,axis=0))) < 100:
-            print('3rd if')
+            # print('3rd if')
             leftLine.updateLines(leftLineAllY,leftLineAllX)
             leftLine.detected = True
             
         else:
-            print('1st else')
+            # print('1st else')
             leftLine.detected = False
 
         if rightLine.bestx is None or np.abs(np.subtract(rightLine.bestx,np.mean(rightLineAllX,axis=0))) < 100:
@@ -279,7 +282,7 @@ class LaneDetector():
             rightLine.detected = True
         
         else:
-            print('2nd else')
+            # print('2nd else')
             rightLine.detected = False
 
         carPos = imageSizes[0]/2
@@ -295,8 +298,8 @@ class LaneDetector():
 
     def find_lanes(self,leftLine,rightLine):
         if leftLine.detected and rightLine.detected:
-            self.margin_search(self.partialFrame,leftLine,rightLine)
-            self.validate_find_lanes(self.partialFrame,leftLine.currentFit,rightLine.currentFit)
+            self.margin_search(self.partialFrame,leftLine.currentFit,rightLine.currentFit)
+            self.validate_find_lanes(self.partialFrame,leftLine,rightLine)
             print('margin done')
         else:
             self.full_window_search()
