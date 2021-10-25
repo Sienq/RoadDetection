@@ -28,7 +28,6 @@ class Line():
         self.recentXFit.append(self.currentFit)
         fitCurve = np.polyfit(ally*METER_PER_PIXEL_Y,allx*METER_PER_PIXEL_X,2)
         evaluateY = np.max(ally)
-
         self.radiusOfCurvature = ((1+(2*fitCurve[0]*evaluateY*METER_PER_PIXEL_Y+ fitCurve[1])**2)**1.5) // np.absolute(2*fitCurve[0])
 
 class LaneDetector():
@@ -160,7 +159,7 @@ class LaneDetector():
 
 
         leftX = nonZeroX[self.leftIndicies]
-        leftY = nonZeroY[self.leftIndicies] #! TU NIE POWINNO BYC SELFow  TYMCZASOWE ROZWIAZANIE
+        leftY = nonZeroY[self.leftIndicies]
         rightX = nonZeroX[self.rightIndicies]
         rightY = nonZeroY[self.rightIndicies]
 
@@ -182,17 +181,14 @@ class LaneDetector():
         cv2.imshow('with rect',toshow)
 
 
-
-    def margin_search(self,leftLine,rightLine,frame= None):
-
+    def margin_search(self,leftLine,rightLine):
+        print(leftLine.shape)
+        print(rightLine.shape)
         nonZero = self.partialFrame.nonzero() # returns indexes of non zero pixels
         nonZeroY = np.array(nonZero[0]) # in Y direction
         nonZeroX = np.array(nonZero[1]) # in X direction
 
         margin = 30
-        print(leftLine.shape)
-        print(rightLine.shape)
-
         self.leftIndicies = ((nonZeroX > (leftLine[0]*(nonZeroY**2) + leftLine[1]*nonZeroY + leftLine[2] - margin)) & (nonZeroX < (leftLine[0]*(nonZeroY**2) + leftLine[1]*nonZeroY + leftLine[2] + margin)))
         self.rightIndicies = ((nonZeroX > (rightLine[0]*(nonZeroY**2) + rightLine[1]*nonZeroY + rightLine[2] - margin)) & (nonZeroX < (rightLine[0]*(nonZeroY**2) + rightLine[1]*nonZeroY + rightLine[2] + margin)))
 
@@ -268,7 +264,7 @@ class LaneDetector():
             return
 
         if leftLine.bestx is None or np.abs(np.substract(leftLine.bestx,np.mean(leftLineAllX,axis=0))) < 100:
-            # print('3rd if')
+            print('3rd if')
             leftLine.updateLines(leftLineAllY,leftLineAllX)
             leftLine.detected = True
             
@@ -298,7 +294,7 @@ class LaneDetector():
 
     def find_lanes(self,leftLine,rightLine):
         if leftLine.detected and rightLine.detected:
-            self.margin_search(self.partialFrame,leftLine.currentFit,rightLine.currentFit)
+            self.margin_search(leftLine.currentFit,rightLine.currentFit)
             self.validate_find_lanes(self.partialFrame,leftLine,rightLine)
             print('margin done')
         else:
@@ -317,7 +313,6 @@ if __name__ == '__main__':
         capfordetection.get_perspective(capfordetection.hlsLight)
         capfordetection.get_img_for_histogram()
         capfordetection.threshold()
-        # capfordetection.full_window_search()
         capfordetection.find_lanes(leftLine,rightLine)
         cv2.imshow('cam',capfordetection.frame)
         if cv2.waitKey(30) & 0xFF == ord('q'):
