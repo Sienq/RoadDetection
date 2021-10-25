@@ -7,8 +7,7 @@ from collections import deque
 METER_PER_PIXEL_Y = 30/720
 METER_PER_PIXEL_X = 3.7/700
 #! WSZEDZIE DAC FRAME
-#! MARGIN SERCH '&' DO NAPRAWY
-#! ZWROCIC INDICIES Z FULL SEARCH DO UZYCIA W WALIDACJI
+#! Naprawic video feed
 
 class Line():
     def __init__(self,maxSamples=4):
@@ -130,7 +129,7 @@ class LaneDetector():
 
         self.leftIndicies = []
         self.rightIndicies = []
-        toshow = np.array(self.partialFrame)
+        self.toshow = np.array(self.partialFrame)
         for window in range(slidingWindowsNumber):
             winYLOW = np.round(self.partialFrame.shape[0] - (window+1) * slidingWindowHeight).astype(int)
             winYHIGH = np.round(self.partialFrame.shape[0] - window*slidingWindowHeight).astype(int)
@@ -140,8 +139,8 @@ class LaneDetector():
             winXRightHigh = np.round(rightCurr + margin).astype(int)
 
 
-            cv2.rectangle(toshow,(winXLeftLow,winYLOW),(winXLeftHigh,winYHIGH),(255,255,255),2)
-            cv2.rectangle(toshow,(winXRightLow,winYLOW),(winXRightHigh,winYHIGH),(255,255,255),2)
+            cv2.rectangle(self.toshow,(winXLeftLow,winYLOW),(winXLeftHigh,winYHIGH),(255,255,255),2)
+            cv2.rectangle(self.toshow,(winXRightLow,winYLOW),(winXRightHigh,winYHIGH),(255,255,255),2)
 
             goodLeft = ((nonZeroY >= winYLOW) & (nonZeroY < winYHIGH) & (nonZeroX >= winXLeftLow) & (nonZeroX < winXLeftHigh)).nonzero()[0]
             goodRight = ((nonZeroY >= winYLOW) & (nonZeroY < winYHIGH) & (nonZeroX >= winXRightLow) & (nonZeroX < winXRightHigh)).nonzero()[0]
@@ -170,15 +169,16 @@ class LaneDetector():
             leftPolynomialFit = np.polyfit(leftY,leftX,2)
             leftFit = leftPolynomialFit[0] *ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
             left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
-            cv2.polylines(toshow,[left],False,(255,255,255),10)
+            cv2.polylines(self.toshow,[left],False,(255,255,255),10)
 
         if len(rightX) and len(rightY):
             rightPolynomialFit = np.polyfit(rightY,rightX,2)
             rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
             right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
-            cv2.polylines(toshow,[right],False,(255,255,255),10)
+            cv2.polylines(self.toshow,[right],False,(255,255,255),10)
 
-        cv2.imshow('with rect',toshow)
+        cv2.imshow('cam',self.toshow)
+
 
 
     def margin_search(self,leftLine,rightLine):
@@ -197,30 +197,31 @@ class LaneDetector():
         rightX = nonZeroX[self.rightIndicies]
         rightY = nonZeroY[self.rightIndicies]
 
-        toshow = np.array(self.partialFrame)
+        self.toshow = np.array(self.partialFrame)
 
         ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
 
         if len(leftX) and len(leftY):
             leftPolynomialFit = np.polyfit(leftY,leftX,2)
-            leftFit = leftPolynomialFit[0] *ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
+            leftFit = leftPolynomialFit[0] * ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
             leftLWindow1 = np.array([np.transpose(np.vstack([leftFit-margin,ploty]))])
-            leftLWindow2 = np.array([np.flipud(np.vstack([leftFit+margin,ploty]))])
+            leftLWindow2 = np.array([np.flipud(np.transpose(np.vstack([leftFit+margin, ploty])))])
             leftLinePoints = np.hstack((leftLWindow1,leftLWindow2))
-            cv2.fillPoly(toshow,np.intc([leftLinePoints]),(255,255,255))
+            cv2.fillPoly(self.toshow,np.intc([leftLinePoints]),(255,255,255))
             left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
-            cv2.polylines(toshow,[left],False,(255,255,255),10)
+            cv2.polylines(self.toshow,[left],False,(255,255,255),3)
         if len(rightX) and len(rightY):
             rightPolynomialFit = np.polyfit(rightY,rightX,2)
             rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
             rightLWindow1 = np.array([np.transpose(np.vstack([rightFit-margin,ploty]))])
-            rightLWindow2 = np.array([np.flipud(np.vstack([rightFit+margin,ploty]))])
+            rightLWindow2 = np.array([np.flipud(np.transpose(np.vstack([rightFit+margin, ploty])))])
             rightLinePoints = np.hstack((rightLWindow1,rightLWindow2))
-            cv2.fillPoly(toshow,np.intc([rightLinePoints]),(255,255,255))
+            cv2.fillPoly(self.toshow,np.intc([rightLinePoints]),(255,255,255))
             right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
-            cv2.polylines(toshow,[right],False,(255,255,255),10)
+            cv2.polylines(self.toshow,[right],False,(255,255,255),3)
 
-        cv2.imshow('margin',self.partialFrame)
+        cv2.imshow('cam',self.toshow)
+
 
 
 
@@ -235,10 +236,8 @@ class LaneDetector():
 
         leftLineAllX = nonZeroX[self.leftIndicies]
         leftLineAllY = nonZeroY[self.leftIndicies]
-                                            #! TO DO NAPRAWY, ZLE PRZEPISUJA SIE  INDEKSY
         rightLineAllX = nonZeroX[self.rightIndicies]
         rightLineAllY = nonZeroY[self.rightIndicies]
-        print(len(self.rightIndicies))
 
         if len(leftLineAllX) < 1800 or len(rightLineAllX) < 1800:
             print('0 if')
@@ -263,7 +262,7 @@ class LaneDetector():
             rightLine.detected = False
             return
 
-        if leftLine.bestx is None or np.abs(np.substract(leftLine.bestx,np.mean(leftLineAllX,axis=0))) < 100:
+        if leftLine.bestx is None or np.abs(np.subtract(leftLine.bestx,np.mean(leftLineAllX,axis=0))) < 100:
             print('3rd if')
             leftLine.updateLines(leftLineAllY,leftLineAllX)
             leftLine.detected = True
@@ -292,14 +291,19 @@ class LaneDetector():
         leftLine.lineBasePos = (carPos - laneCenter) * METER_PER_PIXEL_X
         rightLine.lineBasePos = leftLine.lineBasePos
 
+
+        
+
     def find_lanes(self,leftLine,rightLine):
         if leftLine.detected and rightLine.detected:
             self.margin_search(leftLine.currentFit,rightLine.currentFit)
             self.validate_find_lanes(self.partialFrame,leftLine,rightLine)
-            print('margin done')
+            cv2.imshow('cam',self.toshow)
         else:
             self.full_window_search()
             self.validate_find_lanes(self.partialFrame,leftLine,rightLine)
+            cv2.imshow('cam',self.toshow)
+
 if __name__ == '__main__':
     video = cv2.VideoCapture('dashcamshort.mp4')
     leftLine = Line()
@@ -314,8 +318,8 @@ if __name__ == '__main__':
         capfordetection.get_img_for_histogram()
         capfordetection.threshold()
         capfordetection.find_lanes(leftLine,rightLine)
-        cv2.imshow('cam',capfordetection.frame)
-        if cv2.waitKey(30) & 0xFF == ord('q'):
+        cv2.imshow('cam',capfordetection.toshow)
+        if cv2.waitKey(10) & 0xFF == ord('q'):
             break
 
     video.release()
