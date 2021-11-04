@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
 import tkinter as tk
+import matplotlib
 import matplotlib.pyplot as plt
 from collections import deque
 
 METER_PER_PIXEL_Y = 30/720
 METER_PER_PIXEL_X = 3.7/700
+matplotlib.use('tkagg')
 #! WSZEDZIE DAC FRAME
 #! Naprawic video feed
 
@@ -38,7 +40,7 @@ class LaneDetector():
     def get_frame(self,frame):
         self.frame = frame
 
-    def preprocess_frame(self,threshold1=255/3,threshold2=255,kernelSize = (5,5)):
+    def preprocess_frame(self,threshold1=255/1.5,threshold2=255,kernelSize = (5,5)):
 
         self.frame = cv2.GaussianBlur(self.frame,kernelSize,sigmaX=0)
         self.hlsImg = cv2.cvtColor(self.frame, cv2.COLOR_BGR2HLS).astype(float)     # Convert from BGR to H-HUE L-LIGHT S-Saturation format
@@ -69,7 +71,7 @@ class LaneDetector():
        edge = cv2.Scharr(self.perspectiveImg,cv2.CV_64F,1,0)    # apply Schaar filter for edge detection
        edge = np.absolute(edge)     # we don't care if it's positive or negative
        edge = np.uint8(255* edge / np.max(edge))    # convert to 0-255 scale
-       cv2.imshow('edges',edge)
+    #    cv2.imshow('edges',edge) pres
 
        return edge
 
@@ -90,17 +92,20 @@ class LaneDetector():
             binLine[edgeLine >= thresholdLine] = 255
 
 
-        self.binaryOutput[(self.perspectiveImg >=140) & (self.perspectiveImg <= 255)] = 255
-        cv2.imshow('binary',self.binaryOutput)
+        self.binaryOutput[(self.perspectiveImg >=190) & (self.perspectiveImg <= 255)] = 255
+        self.toshow = np.array(self.binaryOutput)
+        self.partialFrame = self.binaryOutput
+        # cv2.imshow('binary',self.binaryOutput) pres
 
 
     #!Create histograms from tresholded "bird eye" view
     #!DONE
     def create_histograms(self,frame=None):
 
-        self.partialFrame = self.binaryOutput # get small part of whole masked area
-        cv2.imshow('partial',self.partialFrame)
+        # self.partialFrame = self.binaryOutput # get small part of whole masked area
+        # cv2.imshow('partial',self.partialFrame) pres
         histogram = np.sum(self.partialFrame,axis=0)    # create histogram
+        # print(histogram) pres
         # plt.plot(histogram)
         # plt.show()
 
@@ -126,10 +131,10 @@ class LaneDetector():
 
         margin = 100
         minpix = 10
-
         self.leftIndicies = []
         self.rightIndicies = []
-        self.toshow = np.array(self.partialFrame)
+        # self.toshow = np.array(self.partialFrame)
+        self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_GRAY2BGR)
         for window in range(slidingWindowsNumber):
             winYLOW = np.round(self.partialFrame.shape[0] - (window+1) * slidingWindowHeight).astype(int)
             winYHIGH = np.round(self.partialFrame.shape[0] - window*slidingWindowHeight).astype(int)
@@ -138,9 +143,10 @@ class LaneDetector():
             winXRightLow = np.round(rightCurr - margin).astype(int)
             winXRightHigh = np.round(rightCurr + margin).astype(int)
 
-
-            cv2.rectangle(self.toshow,(winXLeftLow,winYLOW),(winXLeftHigh,winYHIGH),(255,255,255),2)
-            cv2.rectangle(self.toshow,(winXRightLow,winYLOW),(winXRightHigh,winYHIGH),(255,255,255),2)
+            # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_GRAY2BGR)
+            cv2.rectangle(self.toshow,(winXLeftLow,winYLOW),(winXLeftHigh,winYHIGH),(255,255,50),2)
+            cv2.rectangle(self.toshow,(winXRightLow,winYLOW),(winXRightHigh,winYHIGH),(255,255,50),2)
+            # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_BGR2GRAY)
 
             goodLeft = ((nonZeroY >= winYLOW) & (nonZeroY < winYHIGH) & (nonZeroX >= winXLeftLow) & (nonZeroX < winXLeftHigh)).nonzero()[0]
             goodRight = ((nonZeroY >= winYLOW) & (nonZeroY < winYHIGH) & (nonZeroX >= winXRightLow) & (nonZeroX < winXRightHigh)).nonzero()[0]
@@ -152,10 +158,9 @@ class LaneDetector():
             if len(goodRight) > minpix:
                 rightCurr = int(np.mean(nonZeroX[goodRight]))
 
-        
+
         self.leftIndicies = np.concatenate(self.leftIndicies)
         self.rightIndicies = np.concatenate(self.rightIndicies)
-
 
         leftX = nonZeroX[self.leftIndicies]
         leftY = nonZeroY[self.leftIndicies]
@@ -164,26 +169,27 @@ class LaneDetector():
 
         # self.partialFrame = cv2.cvtColor(self.partialFrame,cv2.COLOR_GRAY2BGR)
         ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
-
+        # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_GRAY2BGR)
         if len(leftX) and len(leftY):
             leftPolynomialFit = np.polyfit(leftY,leftX,2)
             leftFit = leftPolynomialFit[0] *ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
             left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
-            cv2.polylines(self.toshow,[left],False,(255,255,255),10)
+            cv2.polylines(self.toshow,[left],False,(255,0,255),10)
 
         if len(rightX) and len(rightY):
             rightPolynomialFit = np.polyfit(rightY,rightX,2)
             rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
             right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
-            cv2.polylines(self.toshow,[right],False,(255,255,255),10)
+            cv2.polylines(self.toshow,[right],False,(255,0,255),10)
 
-        cv2.imshow('cam',self.toshow)
+        # cv2.imshow('cam3full',self.toshow) pres
+        # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_BGR2GRAY)
 
 
 
     def margin_search(self,leftLine,rightLine):
-        print(leftLine.shape)
-        print(rightLine.shape)
+        # print(leftLine.shape) pres
+        # print(rightLine.shape) pres
         nonZero = self.partialFrame.nonzero() # returns indexes of non zero pixels
         nonZeroY = np.array(nonZero[0]) # in Y direction
         nonZeroX = np.array(nonZero[1]) # in X direction
@@ -197,30 +203,32 @@ class LaneDetector():
         rightX = nonZeroX[self.rightIndicies]
         rightY = nonZeroY[self.rightIndicies]
 
-        self.toshow = np.array(self.partialFrame)
-
+        # self.toshow = np.array(self.partialFrame)
+        # cv2.imshow('partial',self.partialFrame) pres
         ploty = np.linspace(0,self.partialFrame.shape[0]-1,self.partialFrame.shape[0])
-
+        self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_GRAY2BGR)
         if len(leftX) and len(leftY):
             leftPolynomialFit = np.polyfit(leftY,leftX,2)
             leftFit = leftPolynomialFit[0] * ploty**2 + leftPolynomialFit[1]*ploty + leftPolynomialFit[2]
             leftLWindow1 = np.array([np.transpose(np.vstack([leftFit-margin,ploty]))])
             leftLWindow2 = np.array([np.flipud(np.transpose(np.vstack([leftFit+margin, ploty])))])
             leftLinePoints = np.hstack((leftLWindow1,leftLWindow2))
-            cv2.fillPoly(self.toshow,np.intc([leftLinePoints]),(255,255,255))
+            # print(leftLinePoints) pres
+            # cv2.fillPoly(self.toshow,np.intc([leftLinePoints]),(255,0,255))
             left = np.asarray(tuple(zip(leftFit,ploty)),np.int32)
-            cv2.polylines(self.toshow,[left],False,(255,255,255),3)
+            cv2.polylines(self.toshow,[left],False,(200,0,100),20)
         if len(rightX) and len(rightY):
             rightPolynomialFit = np.polyfit(rightY,rightX,2)
             rightFit = rightPolynomialFit[0] *ploty**2 + rightPolynomialFit[1]*ploty + rightPolynomialFit[2]
             rightLWindow1 = np.array([np.transpose(np.vstack([rightFit-margin,ploty]))])
             rightLWindow2 = np.array([np.flipud(np.transpose(np.vstack([rightFit+margin, ploty])))])
             rightLinePoints = np.hstack((rightLWindow1,rightLWindow2))
-            cv2.fillPoly(self.toshow,np.intc([rightLinePoints]),(255,255,255))
+            # cv2.fillPoly(self.toshow,np.intc([rightLinePoints]),(255,0,255))
             right = np.asarray(tuple(zip(rightFit,ploty)),np.int32)
-            cv2.polylines(self.toshow,[right],False,(255,255,255),3)
+            cv2.polylines(self.toshow,[right],False,(200,0,100),20)
 
-        cv2.imshow('cam',self.toshow)
+        # cv2.imshow('cammargin',self.toshow)
+        # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_BGR2GRAY)
 
 
 
@@ -240,44 +248,37 @@ class LaneDetector():
         rightLineAllY = nonZeroY[self.rightIndicies]
 
         if len(leftLineAllX) < 1800 or len(rightLineAllX) < 1800:
-            print('0 if')
             leftLine.detected = False
             rightLine.detected = False
             return
 
         leftXMean = np.mean(leftLineAllX,axis=0)
         rightXMean = np.mean(rightLineAllX,axis=0)
-        print(leftXMean,rightXMean)
+        # print(leftXMean,rightXMean) # pres
         laneWidth = np.subtract(rightXMean,leftXMean)
 
         if leftXMean > 512 or rightXMean < 512:
-            print(leftXMean,rightXMean,'first if')
             leftLine.detected = False
             rightLine.detected = False
             return
 
         if laneWidth < 300 or laneWidth > 600:
-            # print('second if')
             leftLine.detected = False
             rightLine.detected = False
             return
 
-        if leftLine.bestx is None or np.abs(np.subtract(leftLine.bestx,np.mean(leftLineAllX,axis=0))) < 100:
-            print('3rd if')
+        if leftLine.bestx is None or np.abs(np.subtract(leftLine.bestx,np.mean(leftLineAllX,axis=0))) < 800:
             leftLine.updateLines(leftLineAllY,leftLineAllX)
             leftLine.detected = True
             
         else:
-            # print('1st else')
             leftLine.detected = False
 
-        if rightLine.bestx is None or np.abs(np.subtract(rightLine.bestx,np.mean(rightLineAllX,axis=0))) < 100:
-            print('4th if')
+        if rightLine.bestx is None or np.abs(np.subtract(rightLine.bestx,np.mean(rightLineAllX,axis=0))) < 800:
             rightLine.updateLines(rightLineAllY,rightLineAllX)
             rightLine.detected = True
         
         else:
-            # print('2nd else')
             rightLine.detected = False
 
         carPos = imageSizes[0]/2
@@ -295,31 +296,40 @@ class LaneDetector():
         
 
     def find_lanes(self,leftLine,rightLine):
+        # print(leftLine.detected,rightLine.detected) pres
         if leftLine.detected and rightLine.detected:
+            # print('margin') pres
             self.margin_search(leftLine.currentFit,rightLine.currentFit)
             self.validate_find_lanes(self.partialFrame,leftLine,rightLine)
-            cv2.imshow('cam',self.toshow)
+            # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_GRAY2BGR)
+            # cv2.imshow('camMargin',self.toshow) pres
         else:
             self.full_window_search()
             self.validate_find_lanes(self.partialFrame,leftLine,rightLine)
-            cv2.imshow('cam',self.toshow)
+            # self.toshow = cv2.cvtColor(self.toshow,cv2.COLOR_GRAY2BGR)
+            # cv2.imshow('camFull',self.toshow) pres
 
 if __name__ == '__main__':
     video = cv2.VideoCapture('dashcamshort.mp4')
     leftLine = Line()
     rightLine = Line()
     capfordetection = LaneDetector()
+    out = cv2.VideoWriter('output.mp4',cv2.VideoWriter_fourcc('M','J','P','G'), 10, (1024,600))
     while True:
         ret,cap = video.read()
 
         capfordetection.get_frame(cap)
+        # cv2.imshow('cap',capfordetection.frame)
         capfordetection.preprocess_frame()
         capfordetection.get_perspective(capfordetection.hlsLight)
-        capfordetection.get_img_for_histogram()
+        edge = capfordetection.get_img_for_histogram()
+        # cv2.imshow('for histogram',edge) pres
         capfordetection.threshold()
+        # cv2.imshow('thresholded',capfordetection.binaryOutput) pres
         capfordetection.find_lanes(leftLine,rightLine)
-        cv2.imshow('cam',capfordetection.toshow)
-        if cv2.waitKey(10) & 0xFF == ord('q'):
+        cv2.imshow('cam3',capfordetection.toshow)
+        out.write(capfordetection.toshow)
+        if cv2.waitKey(20) & 0xFF == ord('q'):
             break
 
     video.release()
