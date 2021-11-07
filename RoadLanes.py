@@ -9,7 +9,9 @@ METER_PER_PIXEL_Y = 30/720
 METER_PER_PIXEL_X = 3.7/700
 matplotlib.use('tkagg')
 #! WSZEDZIE DAC FRAME
-#! Naprawic video feed
+#! Assemble z main
+#! calibrate camera
+#! dodac moze jakies inne filtry
 
 class Line():
     def __init__(self,maxSamples=4):
@@ -39,6 +41,11 @@ class LaneDetector():
     #!Convert img to HLS and get only Light channel
     def get_frame(self,frame):
         self.frame = frame
+
+    def calibrate_camera(self):
+        pass
+        #TODO PRINT CHESSBOARD, TAKE IMAGES, CALIBRATE CAMERA
+
 
     def preprocess_frame(self,threshold1=255/1.5,threshold2=255,kernelSize = (5,5)):
 
