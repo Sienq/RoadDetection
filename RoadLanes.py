@@ -283,9 +283,18 @@ class LaneDetector():
         newmask = cv2.cvtColor(newmask,cv2.COLOR_GRAY2BGR)
         cv2.polylines(newmask,[right],False,(200,0,100),20)
         cv2.polylines(newmask,[left],False,(200,0,100),20)
-        cordsForPoly = np.array([[left[0][0],0],[right[0][0],0],[right[599][0],right[599][1]],[left[599][0],left[599][1]]]) #! TEMP 
-        print(cordsForPoly)
-        cv2.fillPoly(newmask,[cordsForPoly],(200,200,9))
+        pts = []
+        pts.append(left[0])
+        for i in right:
+            pts.append(i)
+        leftInv = left[::-1]
+        for i in range(len(left)-2):
+            pts.append(leftInv[i])
+        pts = np.array(pts,np.int32)
+        polymask = np.zeros_like(newmask)
+
+        cv2.fillPoly(polymask,[pts],(200,200,9))
+        newmask = cv2.addWeighted(newmask,1,polymask,0.5 ,0)
         newmask = cv2.warpPerspective(newmask,self.forReverse,(1280,720))
         cv2.imshow('mask',newmask)
         self.frame = cv2.addWeighted(self.frame,1,newmask,0.9, 0)
